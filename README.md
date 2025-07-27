@@ -1,119 +1,132 @@
-# Claude Hooks CLI
+# Claude Hooks Library - Usage
 
-A TypeScript CLI tool for managing Claude Code hooks using commander and prompts.
-
-## Features
-
-- 🔍 **Smart Directory Discovery**: Automatically finds `.claude` directories from current directory up to home directory
-- 📝 **Interactive Prompts**: User-friendly selection menus for choosing directories and hooks
-- 🛠️ **Install/Uninstall Commands**: Easy management of Claude Code hooks
-- 📁 **Settings Management**: Works with `settings.local.json` files for project-specific configurations
-
-## Installation
-
-1. Install dependencies:
+## As a CLI tool:
 ```bash
-npm install
+# Install globally
+npm install -g @peoplesgrocers/claude-code-hooks-manager
+
+# Use the binary
+cchooks install my-tool-hooks-definition.json
+cchooks uninstall my-tools-hooks-definition.json
 ```
 
-2. Build the project:
-```bash
-npm run build
+## As a library:
+```typescript
+// Import the library functions
+import { installHooks, uninstallHooks } from '@peoplesgrocers/claude-code-hooks-manager/lib';
+
+const MY_HOOKS = {
+  PreToolUse: [
+    {
+      matcher: '*',
+      hooks: [
+        {
+          type: 'command',
+          command: 'my-custom-binary PreToolUse'
+        }
+      ]
+    }
+  ]
+};
+
+await installHooks(MY_HOOKS);
+await uninstallHooks(MY_HOOKS, { binaryName: 'my-custom-binary' });
 ```
 
-3. Run the CLI:
-```bash
-npm start
-```
+## Why use this library?
 
-## Usage
-
-### Install Hooks
-
-```bash
-npm start install
-```
-
-This command will:
-1. Search for existing `.claude` directories from current directory up to home directory
-2. If no directories found, create one in the current directory
-3. If directories found, prompt you to select which one to install hooks in
-4. Install sample hooks to the selected directory's `settings.local.json`
-
-### Uninstall Hooks
-
-```bash
-npm start uninstall
-```
-
-This command will:
-1. Find all directories with existing hooks
-2. Prompt you to select which directory to uninstall from
-3. Show current hooks and let you select which ones to remove
-4. Update the `settings.local.json` file accordingly
-
-## Hook Configuration
-
-The CLI works with Claude Code hook configurations in this format:
-
-```json
-{
-  "hooks": {
-    "EventName": [
-      {
-        "matcher": "ToolPattern",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "your-command-here"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-## Sample Hooks
-
-The CLI installs these sample hooks by default:
-
-- **onFileOpen**: Triggers when TypeScript files are opened
-- **onFileSave**: Triggers when JavaScript files are saved
-
-## Development
-
-### Running in Development Mode
-
-```bash
-npm run dev
-```
-
-### Building
-
-```bash
-npm run build
-```
-
-## Project Structure
+See this output? That's 1000+ lines of cross-platform compatibility, error
+handling, and JSON editing you don't have to write.
 
 ```
-src/
-├── index.ts              # Main CLI entry point
-├── types.ts              # TypeScript type definitions
-├── commands/
-│   ├── install.ts        # Install command implementation
-│   └── uninstall.ts      # Uninstall command implementation
-└── utils/
-    └── claude-directory.ts # Directory and file management utilities
+user@work 12.057-joint-venture-claude-code-client % node experiment-insert-hooks/dist/entrypoint.js install
+◆ Installing 2 hooks into .claude/settings.local.json (personal, not committed)
+
+Looking for .claude directory in...
+  ✗ /Users/user/src/github.com/12.057-joint-venture-claude-code-client
+  ✗ /Users/user/src/github.com
+  ✗ /Users/user/src
+⚠ No .claude directory found in 3 locations
+
+I can create a new .claude directory for you.
+This will establish a new scope for Claude settings.
+? Where should I create the .claude directory? › - Use arrow-keys. Return to submit.
+    ../../src (2 levels up)
+    ../github.com (parent)
+    . (current directory)
+❯   Cancel installation
 ```
 
-## Dependencies
+For engineers who don't want to debug weird platform issues. I've already done
+the R&D on weird compatibility edge cases across different IDEs, terminals, and
+operating systems. I made friendly error messages tell users exactly what's
+wrong and how to fix it.
 
-- **commander**: CLI framework
-- **prompts**: Interactive prompts
-- **chalk**: Colored console output
+What you get:
+  - Precise JSON editing that preserves formatting and comments
+  - Surgical uninstall (only removes what it added)
+  - Users can self-diagnose 95% of installation issues
+  - Windows/Mac/Linux compatibility baked in
 
-## License
+What you avoid:
+  - Reimplementing .claude project directory discovery logic
+  - Cross-platform file permission headaches
+  - JSON editing edge cases
+  - "Installation failed" support ticket
 
-ISC 
+Focus on your hook commands, not installation debugging.
+
+### Philosophy
+You're a guest in their settings.local.json file. Users have comments, weird
+formatting, existing hooks. If you just JSON.parse() + JSON.stringify() to add
+your hooks, you'll nuke their formatting and users will be rightfully mad.
+
+This library respects their file: 2-step process with file-level diff preview
+before any destructive operations. Auto-detects popular diff tools (difft,
+delta, etc.) they already have installed. Users see exactly what changes,
+accept/reject, then atomic file swap.
+
+Maximum respect for the end user developer is baked into this library.
+
+```
+user@work experiment-insert-hooks % node dist/entrypoint.js uninstall
+Looking for .claude directory in...
+  ✓ /Users/user/src/github.com/12.057-joint-venture-claude-code-client/experiment-insert-hooks
+  I see there's already a settings.local.json file
+Uninstalling hooks...
+
+Showing diff (difft):
+
+settings.local.json --- JSON
+ 1 1 {
+ 2 2     "some": "key",
+ 3 3     // This is a comment
+ 4 4             "and another key": 6,
+ 5 .             "hooks": {
+ 6 .               "PreToolUse": [
+ 7 .                 {
+ 8 .                   "matcher": "*",
+ 9 .                   "hooks": [
+10 .                     {
+11 .                       "type": "command",
+12 .                       "command": "happy-coder-hooks PreToolUse"
+13 .                     }
+14 .                   ]
+15 .                 }
+16 .               ],
+17 .               "PostToolUse": [
+18 .                 {
+19 .                   "matcher": "*",
+20 .                   "hooks": [
+21 .                     {
+22 .                       "type": "command",
+23 .                       "command": "happy-coder-hooks PostToolUse"
+24 .                     }
+25 .                   ]
+26 .                 }
+27 .               ]
+28 .             }
+29 5 }
+
+? Remove 2 hooks entries? › (Y/n)
+```

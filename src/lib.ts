@@ -16,29 +16,15 @@
  * License along with this library; if not, see <https://www.gnu.org/licenses/>.
  */
 
-// Hook configuration types
-export interface Hook {
-  type: 'command';
-  command: string;
-}
+// Library exports for using this as a reusable hook management library
+export { installHooks } from './commands/install';
+export { uninstallHooks } from './commands/uninstall';
+export { performInstallation, performUninstallation, reportInstallResults, addHooks } from './install-phase';
+export { removeHooksWithBinary, removeHooksWithDefinition } from './uninstall-phase';
+export { discoverClaudeDirectories } from './discovery-phase';
+export { makeInstallDecision } from './decision-phase';
 
-export interface HookMatcher {
-  matcher: string;
-  hooks: Hook[];
-}
-
-export interface Hooks {
-  [eventName: string]: HookMatcher[];
-}
-
-export interface ClaudeSettings {
-  hooks?: Hooks;
-}
-
-// Type for directory information
-export interface DirectoryInfo {
-  path: string;
-  hasSettings: boolean;
-  hasLocalSettings: boolean;
-  displayName: string;
-} 
+// Export types
+export type { InstallResult, UninstallOptions } from './install-phase';
+export type { UninstallResult } from './uninstall-phase';
+export type { Hook, HookMatcher, Hooks, ClaudeSettings, DirectoryInfo } from './types';

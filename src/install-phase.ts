@@ -1,3 +1,21 @@
+/*
+ * CLI tool for managing Claude Code hooks
+ * Copyright (C) 2025  Peoples Grocers LLC
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { promises as fs } from 'fs';
 import path from 'path';
 import { execSync, spawnSync } from 'child_process';
@@ -7,33 +25,7 @@ import * as jsonc from 'jsonc-parser';
 import chalk from 'chalk';
 import prompts from 'prompts';
 
-import { removeHooksWithBinary } from 'src/uninstall-phase';
-
-// Declarative specification of which hooks to install
-const HOOKS_TO_INSTALL = {
-  PreToolUse: [
-    {
-      matcher: '*',
-      hooks: [
-        {
-          type: 'command',
-          command: 'happy-coder-hooks PreToolUse'
-        }
-      ]
-    }
-  ],
-  PostToolUse: [
-    {
-      matcher: '*',
-      hooks: [
-        {
-          type: 'command',
-          command: 'happy-coder-hooks PostToolUse'
-        }
-      ]
-    }
-  ]
-};
+import { removeHooksWithBinary, removeHooksWithDefinition } from 'src/uninstall-phase';
 
 export interface InstallResult {
   success: boolean;
@@ -45,6 +37,7 @@ export interface InstallResult {
 
 export interface UninstallOptions {
   diffTool?: string;
+  binaryName?: string;
 }
 
 /**
@@ -52,38 +45,41 @@ export interface UninstallOptions {
  */
 export async function performInstallation(
   targetDirectory: string,
-  createNewDirectory: boolean
+  createNewDirectory: boolean,
+  hooksToInstall: Record<string, any[]>,
+  settingsFile: 'settings.json' | 'settings.local.json' = 'settings.local.json'
 ): Promise<InstallResult> {
+  console.log(`Installing hooks into project's .claude/${settingsFile}`)
   try {
     let createdNewDirectory = false;
     
     // Create .claude directory if needed
     if (createNewDirectory) {
       const claudeDir = path.join(targetDirectory, '.claude');
-      console.log(chalk.blue(`\nI'm creating a new .claude directory...`));
+      console.log(`\nI'm creating a new .claude directory...`);
       await fs.mkdir(claudeDir, { recursive: true });
       console.log(chalk.green(`✓ I created: ${claudeDir}`));
       createdNewDirectory = true;
     }
     
-    // Check if settings.local.json exists
-    const settingsPath = path.join(targetDirectory, '.claude', 'settings.local.json');
+    // Check if settings file exists
+    const settingsPath = path.join(targetDirectory, '.claude', settingsFile);
     let createdNewFile = false;
     
     try {
       await fs.stat(settingsPath);
-      console.log(chalk.gray(`\nI found an existing settings.local.json file`));
-      console.log(chalk.blue(`I'll add the hooks to it...`));
+      console.log(chalk.gray(`\nI found an existing ${settingsFile} file`));
+      console.log(`I'll add the hooks to it...`);
     } catch {
-      console.log(chalk.blue(`\nI'm creating a settings.local.json file...`));
+      console.log(`\nI'm creating a ${settingsFile} file...`);
       createdNewFile = true;
     }
     
     // Install the hooks using the jsonc-parser based addHooks function
-    await addHooks(settingsPath, HOOKS_TO_INSTALL);
+    await addHooks(settingsPath, hooksToInstall);
     
     if (createdNewFile) {
-      console.log(chalk.green(`✓ I created: settings.local.json`));
+      console.log(chalk.green(`✓ I created: ${settingsFile}`));
     }
     
     return {
@@ -103,25 +99,27 @@ export async function performInstallation(
 /**
  * Report the results of the installation
  */
-export function reportInstallResults(result: InstallResult): void {
+export function reportInstallResults(result: InstallResult, hooksInstalled: Record<string, any[]>): void {
   if (!result.success) {
-    console.log(chalk.red(`\n❌ I couldn't complete the installation`));
-    console.log(chalk.yellow(`The problem was: ${result.error}`));
+    console.log(chalk.red(`\n✗ I couldn't complete the installation`));
+    console.log(chalk.yellow('⚠') + ` The problem was: ${result.error}`);
     return;
   }
   
-  console.log(chalk.green(`\n✅ Installation complete!`));
+  console.log(chalk.green(`\n✓`) + ` Installation complete!`);
+  
+  const settingsFileName = path.basename(result.settingsPath!);
   
   if (result.createdNewDirectory && result.createdNewFile) {
-    console.log(chalk.gray(`I created both the .claude directory and settings.local.json file`));
+    console.log(chalk.gray(`I created both the .claude directory and ${settingsFileName} file`));
   } else if (result.createdNewFile) {
-    console.log(chalk.gray(`I created the settings.local.json file`));
+    console.log(chalk.gray(`I created the ${settingsFileName} file`));
   } else {
-    console.log(chalk.gray(`I updated your existing settings.local.json file`));
+    console.log(chalk.gray(`I updated your existing ${settingsFileName} file`));
   }
   
-  console.log(chalk.blue(`\nI installed these hooks:`));
-  for (const [eventName, matchers] of Object.entries(HOOKS_TO_INSTALL)) {
+  console.log(`\nI installed these hooks:`);
+  for (const [eventName, matchers] of Object.entries(hooksInstalled)) {
     console.log(chalk.cyan(`  ${eventName}:`));
     if (Array.isArray(matchers)) {
       matchers.forEach((matcher: any) => {
@@ -152,6 +150,7 @@ function findDiffTool(): string {
  */
 export async function performUninstallation(
   targetDirectory: string,
+  hooksToRemove: Record<string, any[]>,
   options: UninstallOptions = {}
 ): Promise<InstallResult> {
   try {
@@ -161,23 +160,24 @@ export async function performUninstallation(
     try {
       await fs.stat(settingsPath);
     } catch {
-      console.log(chalk.yellow('No settings.local.json file found.'));
+      console.log('No settings.local.json file found.');
       return {
         success: true,
         settingsPath
       };
     }
     
-    console.log(chalk.blue('Uninstalling happy-coder-hooks...'));
+    const binaryName = options.binaryName || 'hooks';
+    console.log(chalk.blue(`Uninstalling ${binaryName}...`));
     
     // Read current settings
     const currentContent = await fs.readFile(settingsPath, 'utf-8');
     
     // Remove hooks and get the result
-    const result = await removeHooksWithBinary(settingsPath, 'happy-coder-hooks');
+    const result = await removeHooksWithDefinition(settingsPath, hooksToRemove);
     
     if (result.removedCount === 0) {
-      console.log(chalk.yellow('No happy-coder-hooks found to uninstall.'));
+      console.log(`No matching ${binaryName} found to uninstall.`);
       return {
         success: true,
         settingsPath
@@ -211,15 +211,15 @@ export async function performUninstallation(
     const response = await prompts({
       type: 'confirm',
       name: 'confirmed',
-      message: `Remove ${result.removedCount} happy-coder-hooks entries?`,
+      message: `Remove ${result.removedCount} ${binaryName} entries?`,
       initial: true
     });
     
     if (response.confirmed) {
       await fs.writeFile(settingsPath, result.newContent);
-      console.log(chalk.green(`\n✅ Uninstalled ${result.removedCount} happy-coder-hooks entries.`));
+      console.log(chalk.green(`\n✅ Uninstalled ${result.removedCount} ${binaryName} entries.`));
     } else {
-      console.log(chalk.yellow('\nUninstall cancelled.'));
+      console.log('\nUninstall cancelled.');
     }
     
     // Clean up temp directory
@@ -266,7 +266,7 @@ export async function addHooks(
   settingsPath: string,
   hooks: Record<string, any[]>
 ): Promise<void> {
-  console.log(chalk.blue(`Adding hooks to: ${settingsPath}`));
+  console.log(`Adding hooks to: ${settingsPath}`);
 
 
 
@@ -284,9 +284,9 @@ export async function addHooks(
     const existingData = jsonc.parse(content, errors) as SettingsFile;
     
     if (errors.length > 0) {
-      console.warn(chalk.yellow(`Warning: JSON parsing errors:`));
+      console.warn(chalk.yellow('⚠') + ` JSON parsing errors:`);
       errors.forEach(error => {
-        console.warn(chalk.yellow(`  - Parse error at offset ${error.offset}`));
+        console.warn(`  - Parse error at offset ${error.offset}`);
       });
     }
     

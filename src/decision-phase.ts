@@ -1,3 +1,21 @@
+/*
+ * CLI tool for managing Claude Code hooks
+ * Copyright (C) 2025  Peoples Grocers LLC
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <https://www.gnu.org/licenses/>.
+ */
+
 import path from 'path';
 
 import prompts from 'prompts';
@@ -30,7 +48,7 @@ export async function makeInstallDecision(discovery: DiscoveryResult): Promise<D
     const relativePath = path.relative(process.cwd(), discovery.claudeDirectoryPath!);
     const displayPath = relativePath.split(path.sep).map(() => '..').join('/');
     
-    console.log(chalk.yellow(`\n⚠️  I need to check something with you:`));
+    console.log('\n' + chalk.yellow('⚠') + '  I need to check something with you:');
     console.log(chalk.white(`I found a .claude directory in a parent folder (${displayPath})`));
     console.log(chalk.gray(`If I install there, the hooks will apply to that entire project.`));
     console.log(chalk.gray(`That includes this directory and all its siblings.`));
@@ -51,7 +69,7 @@ export async function makeInstallDecision(discovery: DiscoveryResult): Promise<D
     }
     
     // User said no to parent, offer to create new one
-    console.log(chalk.blue(`\nOkay, I won't use the parent directory.`));
+    console.log(`\nOkay, I won't use the parent directory.`);
     return await offerToCreateNew(discovery);
   }
   
@@ -63,7 +81,7 @@ export async function makeInstallDecision(discovery: DiscoveryResult): Promise<D
  * Offer to create a new .claude directory when none exists or user declined parent
  */
 async function offerToCreateNew(discovery: DiscoveryResult): Promise<DecisionResult> {
-  console.log(chalk.blue(`\nI can create a new .claude directory for you.`));
+  console.log(`\nI can create a new .claude directory for you.`);
   console.log(chalk.gray(`This will establish a new scope for Claude settings.`));
   
   // Build choices from candidate directories
@@ -91,7 +109,7 @@ async function offerToCreateNew(discovery: DiscoveryResult): Promise<DecisionRes
   // Add cancel option
   choices.push({
     title: chalk.red('Cancel installation'),
-    value: 'I__CANCEL__'
+    value: '__CANCEL__'
   });
   
   const response = await prompts({
@@ -103,7 +121,7 @@ async function offerToCreateNew(discovery: DiscoveryResult): Promise<DecisionRes
   });
   
   if (response.directory === '__CANCEL__' || response.directory === undefined) {
-    console.log(chalk.yellow(`\nI understand. No changes made.`));
+    console.log(`\nI understand. No changes made.`);
     return {
       proceed: false,
       createNewDirectory: false

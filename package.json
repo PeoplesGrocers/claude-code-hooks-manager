@@ -4,10 +4,11 @@
   "description": "CLI tool for managing Claude Code hooks",
   "main": "dist/entrypoint.js",
   "bin": {
-    "claude-hooks": "dist/entrypoint.js"
+    "cchooks": "dist/entrypoint.js"
   },
   "exports": {
-    ".": "./dist/entrypoint.js"
+    ".": "./dist/entrypoint.js",
+    "./lib": "./dist/lib.js"
   },
   "type": "module",
   "scripts": {
@@ -26,6 +27,7 @@
   "dependencies": {
     "chalk": "^5.4.1",
     "commander": "^14.0.0",
+    "deep-equal": "^2.2.3",
     "jsonc-parser": "^3.3.1",
     "prompts": "^2.4.2"
   },

@@ -1,3 +1,21 @@
+/*
+ * CLI tool for managing Claude Code hooks
+ * Copyright (C) 2025  Peoples Grocers LLC
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <https://www.gnu.org/licenses/>.
+ */
+
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -25,8 +43,7 @@ export async function discoverClaudeDirectories(): Promise<DiscoveryResult> {
   const candidateDirectories: string[] = [];
   const searchedDirectories: string[] = [];
   
-  console.log(chalk.blue(`I'm looking for a .claude directory...`));
-  console.log(chalk.gray(`Starting in: ${currentDir}`));
+  console.log(`Looking for .claude directory in...`);
   
   // First check current directory
   const currentClaudeDir = path.join(currentDir, '.claude');
@@ -36,7 +53,7 @@ export async function discoverClaudeDirectories(): Promise<DiscoveryResult> {
   try {
     const stats = await fs.stat(currentClaudeDir);
     if (stats.isDirectory()) {
-      console.log(chalk.green(`✓ I found a .claude directory right here!`));
+      console.log(`  ${chalk.green('✓')} ${chalk.gray(currentDir)}`);
       
       // Check if settings.local.json exists
       const settingsPath = path.join(currentClaudeDir, 'settings.local.json');
@@ -60,11 +77,8 @@ export async function discoverClaudeDirectories(): Promise<DiscoveryResult> {
       };
     }
   } catch {
-    // Not found in current directory
+    console.log(`  ${chalk.red('✗')} ${chalk.gray(currentDir)}`);
   }
-  
-  console.log(chalk.yellow(`I don't see a .claude directory here`));
-  console.log(chalk.blue(`Let me look in parent directories...`));
   
   // Search upward through parent directories
   let searchDir = currentDir;
@@ -83,16 +97,12 @@ export async function discoverClaudeDirectories(): Promise<DiscoveryResult> {
     candidateDirectories.push(searchDir);
     
     const claudeDir = path.join(searchDir, '.claude');
-    const relativePath = path.relative(currentDir, searchDir);
-    const displayPath = relativePath === '' ? '.' : relativePath.split(path.sep).map(() => '..').join('/');
-    
-    console.log(chalk.gray(`  Checking ${displayPath} (${path.basename(searchDir)})`));
     
     try {
       const stats = await fs.stat(claudeDir);
       if (stats.isDirectory() && !foundClaudeDir) {
         foundClaudeDir = searchDir;
-        console.log(chalk.yellow(`  → Found .claude directory here!`));
+        console.log(`  ${chalk.green('✓')} ${chalk.gray(searchDir)}`);
         
         // Check for settings file
         const settingsPath = path.join(claudeDir, 'settings.local.json');
@@ -107,14 +117,14 @@ export async function discoverClaudeDirectories(): Promise<DiscoveryResult> {
         // Continue searching to find all candidates
       }
     } catch {
-      // Directory doesn't exist, that's ok
+      console.log(`  ${chalk.red('✗')} ${chalk.gray(searchDir)}`);
     }
   }
   
   if (foundClaudeDir) {
     const relativePath = path.relative(currentDir, foundClaudeDir);
     const displayPath = relativePath.split(path.sep).map(() => '..').join('/');
-    console.log(chalk.blue(`\nI found a .claude directory at: ${displayPath}`));
+    console.log(`\nI found a .claude directory at: ${displayPath}`);
     
     return {
       claudeDirectoryFound: true,
@@ -126,8 +136,7 @@ export async function discoverClaudeDirectories(): Promise<DiscoveryResult> {
     };
   }
   
-  console.log(chalk.yellow(`\nI couldn't find any .claude directory`));
-  console.log(chalk.gray(`I looked in ${searchedDirectories.length} directories from here up to ${path.basename(searchedDirectories[searchedDirectories.length - 1])}`));
+  console.log(chalk.yellow('⚠') + ` No .claude directory found in ${searchedDirectories.length} locations`);
   
   return {
     claudeDirectoryFound: false,

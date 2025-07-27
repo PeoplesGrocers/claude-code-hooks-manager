@@ -1,3 +1,21 @@
+/*
+ * CLI tool for managing Claude Code hooks
+ * Copyright (C) 2025  Peoples Grocers LLC
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <https://www.gnu.org/licenses/>.
+ */
+
 import prompts from 'prompts';
 import chalk from 'chalk';
 import { promises as fs } from 'fs';
@@ -5,6 +23,7 @@ import path from 'path';
 import os from 'os';
 import { execSync, spawnSync } from 'child_process';
 import * as jsonc from 'jsonc-parser';
+import deepEqual from 'deep-equal';
 
 export interface UninstallResult {
   success: boolean;
@@ -93,6 +112,77 @@ export async function removeHooksWithBinary(
 }
 
 /**
+ * Remove hooks that exactly match the provided hook definition
+ * Returns the new content and count of removed hooks
+ */
+export async function removeHooksWithDefinition(
+    settingsPath: string,
+    hookDefinition: Record<string, any[]>
+): Promise<{ newContent: string; removedCount: number; }> {
+    const content = await fs.readFile(settingsPath, 'utf-8');
+    const errors: jsonc.ParseError[] = [];
+    const existingData = jsonc.parse(content, errors) as SettingsFile;
+    
+    if (!existingData.hooks) {
+        return { newContent: content, removedCount: 0 };
+    }
+
+    let removedCount = 0;
+    let workingContent = content;
+
+    // Track which event types to remove entirely
+    const eventTypesToRemove: string[] = [];
+
+    // Check each event type in the definition
+    for (const [eventName, definitionMatchers] of Object.entries(hookDefinition)) {
+        const existingMatchers = existingData.hooks[eventName];
+        if (!existingMatchers || !Array.isArray(existingMatchers)) continue;
+
+        const matcherIndicesToRemove: number[] = [];
+
+        // Check each existing matcher against the definition
+        existingMatchers.forEach((existingMatcher: any, index: number) => {
+            // Check if this matcher exactly matches any in the definition
+            const matchesDefinition = definitionMatchers.some((defMatcher: any) => {
+                return deepEqual(existingMatcher, defMatcher);
+            });
+
+            if (matchesDefinition) {
+                matcherIndicesToRemove.push(index);
+                removedCount++;
+            }
+        });
+
+        // If all matchers are being removed, mark the entire event for removal
+        if (matcherIndicesToRemove.length === existingMatchers.length) {
+            eventTypesToRemove.push(eventName);
+        } else if (matcherIndicesToRemove.length > 0) {
+            // Remove specific matchers (reverse order to maintain indices)
+            matcherIndicesToRemove.sort((a, b) => b - a);
+            for (const index of matcherIndicesToRemove) {
+                const edits = jsonc.modify(workingContent, ['hooks', eventName, index], undefined, {});
+                workingContent = jsonc.applyEdits(workingContent, edits);
+            }
+        }
+    }
+
+    // Remove entire event types that have no remaining hooks
+    for (const eventType of eventTypesToRemove) {
+        const edits = jsonc.modify(workingContent, ['hooks', eventType], undefined, {});
+        workingContent = jsonc.applyEdits(workingContent, edits);
+    }
+
+    // Check if hooks object is now empty and remove it if so
+    const updatedData = jsonc.parse(workingContent) as SettingsFile;
+    if (updatedData.hooks && Object.keys(updatedData.hooks).length === 0) {
+        const edits = jsonc.modify(workingContent, ['hooks'], undefined, {});
+        workingContent = jsonc.applyEdits(workingContent, edits);
+    }
+
+    return { newContent: workingContent, removedCount };
+}
+
+/**
  * Find diff tool to use
  */
 function findDiffTool(): string {
@@ -108,7 +198,7 @@ function findDiffTool(): string {
  * Ask user for confirmation when uninstalling from parent directory
  */
 async function confirmParentUninstallation(directoryPath: string): Promise<boolean> {
-  console.log(chalk.yellow('\n⚠️  CONFIRMATION REQUIRED'));
+  console.log('\n' + chalk.yellow('⚠') + '  CONFIRMATION REQUIRED');
   console.log(chalk.white('You are about to uninstall hooks from a parent directory.'));
   console.log(chalk.gray(`This will affect the entire project at: ${directoryPath}`));
   
@@ -136,7 +226,7 @@ export async function performUninstallation(
     try {
       await fs.stat(settingsPath);
     } catch {
-      console.log(chalk.yellow('No settings.local.json file found.'));
+      console.log('No settings.local.json file found.');
       return {
         success: true,
         settingsPath,
@@ -155,7 +245,7 @@ export async function performUninstallation(
       }
     }
     
-    console.log(chalk.blue('Uninstalling happy-coder-hooks...'));
+    console.log('Uninstalling happy-coder-hooks...');
     
     // Read current settings
     const currentContent = await fs.readFile(settingsPath, 'utf-8');
@@ -164,7 +254,7 @@ export async function performUninstallation(
     const result = await removeHooksWithBinary(settingsPath, 'happy-coder-hooks');
     
     if (result.removedCount === 0) {
-      console.log(chalk.yellow('No happy-coder-hooks found to uninstall.'));
+      console.log('No happy-coder-hooks found to uninstall.');
       return {
         success: true,
         settingsPath,
@@ -179,7 +269,7 @@ export async function performUninstallation(
     
     // Show diff
     const diffTool = findDiffTool();
-    console.log(chalk.blue(`\nShowing diff (${diffTool}):\n`));
+    console.log(`\nShowing diff (${diffTool}):\n`);
     
     try {
       if (diffTool === 'difft') {
@@ -205,9 +295,9 @@ export async function performUninstallation(
     
     if (response.confirmed) {
       await fs.writeFile(settingsPath, result.newContent);
-      console.log(chalk.green(`\n✅ Uninstalled ${result.removedCount} happy-coder-hooks entries.`));
+      console.log(`\n` + chalk.green('✓') + ` Uninstalled ${result.removedCount} happy-coder-hooks entries.`);
     } else {
-      console.log(chalk.yellow('\nUninstall cancelled.'));
+      console.log('\nUninstall cancelled.');
       await fs.rm(tempDir, { recursive: true });
       return {
         success: false,
@@ -236,8 +326,8 @@ export async function performUninstallation(
  */
 export function reportUninstallResults(result: UninstallResult): void {
   if (!result.success) {
-    console.log(chalk.red('\n❌ Uninstallation failed'));
-    console.log(chalk.yellow(`Reason: ${result.error}`));
+    console.log(chalk.red('\n✗') +' Uninstallation failed');
+    console.log(chalk.red(`  ${result.error}`));
     return;
   }
 

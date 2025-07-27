@@ -1,14 +1,34 @@
+/*
+ * CLI tool for managing Claude Code hooks
+ * Copyright (C) 2025  Peoples Grocers LLC
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <https://www.gnu.org/licenses/>.
+ */
+
 import chalk from 'chalk';
 
 import { discoverClaudeDirectories } from 'src/discovery-phase';
 import { makeInstallDecision } from 'src/decision-phase';
 import { performInstallation, reportInstallResults } from 'src/install-phase';
 
-/**
- * Main install workflow using three distinct phases
- */
-export async function installHooks(): Promise<void> {
-  console.log(chalk.blue('🔧 Installing Claude hooks\n'));
+export async function installHooks(
+  hooksToInstall: Record<string, any[]>, 
+  settingsFile: 'settings.json' | 'settings.local.json' = 'settings.local.json'
+): Promise<void> {
+  const hookCount = Object.keys(hooksToInstall).length;
+  const fileType = settingsFile === 'settings.local.json' ? '(personal, not committed)' : '(shared, committed with repo)';
+  console.log(chalk.blue('◆') + ` Installing ${hookCount} ${hookCount > 1 ? "hooks" : "hook"} into .claude/${settingsFile} ` + chalk.gray(`${fileType}\n`));
   
   // Phase 1: Discovery
   const discovery = await discoverClaudeDirectories();
@@ -24,9 +44,11 @@ export async function installHooks(): Promise<void> {
   // Phase 3: Installation
   const result = await performInstallation(
     decision.targetDirectory!,
-    decision.createNewDirectory
+    decision.createNewDirectory,
+    hooksToInstall,
+    settingsFile
   );
   
   // Report results
-  reportInstallResults(result);
+  reportInstallResults(result, hooksToInstall);
 } 
