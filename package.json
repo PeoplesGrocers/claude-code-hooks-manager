@@ -1,6 +1,6 @@
 {
   "name": "@peoplesgrocers/claude-code-hooks-manager",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "CLI tool for managing Claude Code hooks",
   "main": "dist/entrypoint.js",
   "bin": {
