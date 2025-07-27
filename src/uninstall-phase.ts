@@ -17,13 +17,13 @@
  */
 
 import prompts from 'prompts';
-import chalk from 'chalk';
+import chalk from './vendor/chalk';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { execSync, spawnSync } from 'child_process';
 import * as jsonc from 'jsonc-parser';
-import deepEqual from 'deep-equal';
+import { Hooks, HookMatcher, Hook } from './types';
 
 export interface UninstallResult {
   success: boolean;
@@ -112,12 +112,95 @@ export async function removeHooksWithBinary(
 }
 
 /**
- * Remove hooks that exactly match the provided hook definition
- * Returns the new content and count of removed hooks
+ * Compare two Hook objects for equality.
+ * 
+ * The first parameter is a properly typed Hook from our definition.
+ * The second parameter is raw data parsed from the JSON settings file - 
+ * we have no guarantee it matches our Hook interface, so we must validate
+ * its structure and properties defensively.
+ */
+function areHooksEqual(hook1: Hook, hook2: any): boolean {
+  if (hook2 == null || typeof hook2 !== 'object') return false;
+  
+  return hook1.type === hook2.type && hook1.command === hook2.command;
+}
+
+/**
+ * Compare a typed HookMatcher with raw unvalidated data from settings file.
+ * 
+ * The typedMatcher comes from our codebase and is guaranteed to be valid.
+ * The untypedMatcher is raw JSON data - it could be malformed, have extra
+ * properties, missing properties, or wrong types. We defensively check
+ * each property we care about rather than assuming the structure is correct.
+ */
+function areMatchersEqual(typedMatcher: HookMatcher, untypedMatcher: any): boolean {
+  if (untypedMatcher == null || typeof untypedMatcher !== 'object') return false;
+  
+  // Check if matcher property matches
+  if (typedMatcher.matcher !== untypedMatcher.matcher) return false;
+  
+  // Check if hooks array exists and has same length
+  if (!Array.isArray(untypedMatcher.hooks)) return false;
+  if (typedMatcher.hooks.length !== untypedMatcher.hooks.length) return false;
+  
+  // Check each hook for equality
+  for (let i = 0; i < typedMatcher.hooks.length; i++) {
+    if (!areHooksEqual(typedMatcher.hooks[i], untypedMatcher.hooks[i])) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Visitor function that identifies which matchers should be removed from settings.
+ * 
+ * This implements a "subtract" operation: given a typed hook definition (what we
+ * want to remove) and an array of raw unvalidated matchers from the settings file,
+ * find the indices of matchers that exactly match our definition.
+ * 
+ * @param definitionMatchers - Typed, validated HookMatcher objects we want to remove
+ * @param settingsMatchers - Raw array from JSON file, structure not guaranteed
+ * @returns Array of indices indicating which settingsMatchers should be removed
+ */
+function findMatchersToRemove(
+  definitionMatchers: HookMatcher[],
+  settingsMatchers: any[]
+): number[] {
+  const indicesToRemove: number[] = [];
+  
+  // For each matcher in settings, check if it matches any matcher in definition
+  for (let settingsIndex = 0; settingsIndex < settingsMatchers.length; settingsIndex++) {
+    const settingsMatcher = settingsMatchers[settingsIndex];
+    
+    // Check if this settings matcher exactly matches any definition matcher
+    const hasExactMatch = definitionMatchers.some(definitionMatcher => 
+      areMatchersEqual(definitionMatcher, settingsMatcher)
+    );
+    
+    if (hasExactMatch) {
+      indicesToRemove.push(settingsIndex);
+    }
+  }
+  
+  return indicesToRemove;
+}
+
+/**
+ * Remove hooks that exactly match the provided hook definition.
+ * 
+ * Takes a properly typed Hooks object (what we want to remove) and subtracts
+ * it from the raw unvalidated settings file data. This implements the core
+ * "subtraction" logic for hook removal.
+ * 
+ * @param settingsPath - Path to the settings.local.json file
+ * @param hookDefinition - Typed Hooks object containing exactly what to remove
+ * @returns New file content and count of removed hook matchers
  */
 export async function removeHooksWithDefinition(
     settingsPath: string,
-    hookDefinition: Record<string, any[]>
+    hookDefinition: Hooks
 ): Promise<{ newContent: string; removedCount: number; }> {
     const content = await fs.readFile(settingsPath, 'utf-8');
     const errors: jsonc.ParseError[] = [];
@@ -138,20 +221,9 @@ export async function removeHooksWithDefinition(
         const existingMatchers = existingData.hooks[eventName];
         if (!existingMatchers || !Array.isArray(existingMatchers)) continue;
 
-        const matcherIndicesToRemove: number[] = [];
-
-        // Check each existing matcher against the definition
-        existingMatchers.forEach((existingMatcher: any, index: number) => {
-            // Check if this matcher exactly matches any in the definition
-            const matchesDefinition = definitionMatchers.some((defMatcher: any) => {
-                return deepEqual(existingMatcher, defMatcher);
-            });
-
-            if (matchesDefinition) {
-                matcherIndicesToRemove.push(index);
-                removedCount++;
-            }
-        });
+        // Use our visitor to find which matchers should be removed
+        const matcherIndicesToRemove = findMatchersToRemove(definitionMatchers, existingMatchers);
+        removedCount += matcherIndicesToRemove.length;
 
         // If all matchers are being removed, mark the entire event for removal
         if (matcherIndicesToRemove.length === existingMatchers.length) {

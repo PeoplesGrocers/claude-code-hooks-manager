@@ -19,7 +19,7 @@
  */
 
 import { Command } from 'commander';
-import chalk from 'chalk';
+import chalk from './vendor/chalk';
 import { installHooks } from 'src/commands/install';
 import { uninstallHooks } from 'src/commands/uninstall';
 

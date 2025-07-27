@@ -1,0 +1,28 @@
+{
+  "some_other_setting": "value",
+  "hooks": {
+    "tool_use": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Running bash command'"
+          }
+        ]
+      }
+    ],
+    "unrelated_event": [
+      {
+        "matcher": "SomePattern",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "unrelated-tool do-something"
+          }
+        ]
+      }
+    ]
+  },
+  "another_setting": 42
+}

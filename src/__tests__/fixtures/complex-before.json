@@ -1,0 +1,61 @@
+{
+  "some_other_setting": "value",
+  "hooks": {
+    "tool_use": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Running bash command'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "happy-coder-hooks validate-edit"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "happy-coder-hooks track-read"
+          },
+          {
+            "type": "command", 
+            "command": "other-tool something"
+          }
+        ]
+      }
+    ],
+    "session_start": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "happy-coder-hooks session-init"
+          }
+        ]
+      }
+    ],
+    "unrelated_event": [
+      {
+        "matcher": "SomePattern",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "unrelated-tool do-something"
+          }
+        ]
+      }
+    ]
+  },
+  "another_setting": 42
+}

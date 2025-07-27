@@ -19,7 +19,7 @@
 import path from 'path';
 
 import prompts from 'prompts';
-import chalk from 'chalk';
+import chalk from './vendor/chalk';
 
 import { DiscoveryResult } from 'src/discovery-phase';
 

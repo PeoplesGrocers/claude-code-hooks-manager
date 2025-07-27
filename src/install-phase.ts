@@ -22,7 +22,7 @@ import { execSync, spawnSync } from 'child_process';
 import * as os from 'os';
 
 import * as jsonc from 'jsonc-parser';
-import chalk from 'chalk';
+import chalk from './vendor/chalk';
 import prompts from 'prompts';
 
 import { removeHooksWithBinary, removeHooksWithDefinition } from 'src/uninstall-phase';

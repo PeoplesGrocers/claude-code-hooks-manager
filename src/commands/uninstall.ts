@@ -16,7 +16,7 @@
  * License along with this library; if not, see <https://www.gnu.org/licenses/>.
  */
 
-import chalk from 'chalk';
+import chalk from '../vendor/chalk';
 
 import { discoverClaudeDirectories } from 'src/discovery-phase';
 import { performUninstallation, UninstallOptions } from 'src/install-phase';

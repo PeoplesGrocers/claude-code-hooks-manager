@@ -1,0 +1,16 @@
+{
+  "other_config": "preserved",
+  "hooks": {
+    "tool_use": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "happy-coder-hooks only-hook"
+          }
+        ]
+      }
+    ]
+  }
+}

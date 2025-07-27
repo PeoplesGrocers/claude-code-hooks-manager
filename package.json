@@ -1,33 +1,47 @@
 {
-  "name": "experiment-insert-hooks",
-  "version": "1.0.0",
+  "name": "@peoplesgrocers/claude-code-hooks-manager",
+  "version": "1.0.1",
   "description": "CLI tool for managing Claude Code hooks",
   "main": "dist/entrypoint.js",
   "bin": {
     "cchooks": "dist/entrypoint.js"
   },
+  "types": "./dist/entrypoint.d.ts",
   "exports": {
-    ".": "./dist/entrypoint.js",
-    "./lib": "./dist/lib.js"
+    ".": {
+      "types": "./dist/entrypoint.d.ts",
+      "default": "./dist/entrypoint.js"
+    },
+    "./lib": {
+      "types": "./dist/lib.d.ts",
+      "default": "./dist/lib.js"
+    }
   },
   "type": "module",
   "scripts": {
     "build": "pkgroll && chmod +x dist/entrypoint.js",
     "start": "node dist/entrypoint.js",
     "dev": "tsx src/entrypoint.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "uvu src/__tests__ \"\\.test\\.ts$\" -r tsx"
   },
   "keywords": [
     "claude",
     "hooks",
     "cli"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Karl <marxism@peoplesgrocers.com>",
+  "license": "LGPL-2.1",
+  "homepage": "https://peoplesgrocers.com/en/projects/claude-code-hooks-manager",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peoplesgrocers/claude-code-hooks-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/peoplesgrocers/claude-code-hooks-manager/issues"
+  },
   "dependencies": {
     "chalk": "^5.4.1",
     "commander": "^14.0.0",
-    "deep-equal": "^2.2.3",
     "jsonc-parser": "^3.3.1",
     "prompts": "^2.4.2"
   },
@@ -36,6 +50,7 @@
     "@types/prompts": "^2.4.9",
     "pkgroll": "^2.14.3",
     "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "uvu": "^0.5.6"
   }
 }

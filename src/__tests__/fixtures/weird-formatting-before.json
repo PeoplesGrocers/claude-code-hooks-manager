@@ -1,0 +1,40 @@
+{
+    "hooks":    {
+        "tool_use":
+        [
+            {
+                "matcher":        "Edit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "happy-coder-hooks validate"
+                    }
+                ]
+            }   ,
+            {
+                "matcher": "Write"   ,
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "happy-coder-hooks track-write"
+                    },
+                    {
+                        "type": "command",
+                        "command": "some-other-tool action"
+                    }
+                ]
+            }
+        ],
+        "session_end": [
+            {
+                "matcher": "*",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "happy-coder-hooks cleanup"
+                    }
+                ]
+            }
+        ]
+    }
+}
