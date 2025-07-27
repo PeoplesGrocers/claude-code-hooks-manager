@@ -40,6 +40,7 @@
     "url": "https://github.com/peoplesgrocers/claude-code-hooks-manager/issues"
   },
   "dependencies": {
+    "@types/prompts": "^2.4.9",
     "chalk": "^5.4.1",
     "commander": "^14.0.0",
     "jsonc-parser": "^3.3.1",
@@ -47,7 +48,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/prompts": "^2.4.9",
     "pkgroll": "^2.14.3",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
